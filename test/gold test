@@ -1,0 +1,192 @@
+/*
+===============================================================================
+Gold Layer - Quality Checks
+===============================================================================
+*/
+
+USE DataWarehouse;
+GO
+
+
+-- ====================================================================
+-- 1. Check gold.dim_customers
+-- ====================================================================
+
+-- Check duplicate customer keys
+-- Expected Result: No rows
+
+SELECT
+    customer_key,
+    COUNT(*) AS duplicate_count
+FROM gold.dim_customers
+GROUP BY customer_key
+HAVING COUNT(*) > 1;
+GO
+
+
+-- Check duplicate customer IDs
+-- Expected Result: No rows
+
+SELECT
+    customer_id,
+    COUNT(*) AS duplicate_count
+FROM gold.dim_customers
+GROUP BY customer_id
+HAVING COUNT(*) > 1;
+GO
+
+
+-- Check NULL customer keys
+-- Expected Result: No rows
+
+SELECT *
+FROM gold.dim_customers
+WHERE customer_key IS NULL;
+GO
+
+
+-- ====================================================================
+-- 2. Check gold.dim_products
+-- ====================================================================
+
+-- Check duplicate product keys
+-- Expected Result: No rows
+
+SELECT
+    product_key,
+    COUNT(*) AS duplicate_count
+FROM gold.dim_products
+GROUP BY product_key
+HAVING COUNT(*) > 1;
+GO
+
+
+-- Check duplicate product IDs
+-- Expected Result: No rows
+
+SELECT
+    product_id,
+    COUNT(*) AS duplicate_count
+FROM gold.dim_products
+GROUP BY product_id
+HAVING COUNT(*) > 1;
+GO
+
+
+-- Check NULL product keys
+-- Expected Result: No rows
+
+SELECT *
+FROM gold.dim_products
+WHERE product_key IS NULL;
+GO
+
+
+-- ====================================================================
+-- 3. Check gold.fact_sales
+-- ====================================================================
+
+-- Check fact records with missing customer dimension
+-- Expected Result: No rows
+
+SELECT
+    f.order_number,
+    f.customer_key,
+    f.product_key
+FROM gold.fact_sales AS f
+LEFT JOIN gold.dim_customers AS c
+    ON f.customer_key = c.customer_key
+WHERE c.customer_key IS NULL;
+GO
+
+
+-- Check fact records with missing product dimension
+-- Expected Result: No rows
+
+SELECT
+    f.order_number,
+    f.customer_key,
+    f.product_key
+FROM gold.fact_sales AS f
+LEFT JOIN gold.dim_products AS p
+    ON f.product_key = p.product_key
+WHERE p.product_key IS NULL;
+GO
+
+
+-- ====================================================================
+-- 4. Check Sales Data
+-- ====================================================================
+
+-- Check NULL order numbers
+-- Expected Result: No rows
+
+SELECT *
+FROM gold.fact_sales
+WHERE order_number IS NULL;
+GO
+
+
+-- Check invalid sales amounts
+-- Expected Result: No rows
+
+SELECT *
+FROM gold.fact_sales
+WHERE sales_amount < 0;
+GO
+
+
+-- Check invalid quantities
+-- Expected Result: No rows
+
+SELECT *
+FROM gold.fact_sales
+WHERE quantity <= 0;
+GO
+
+
+-- ====================================================================
+-- 5. Check Date Consistency
+-- ====================================================================
+
+-- Shipping date should not be before order date
+-- Expected Result: No rows
+
+SELECT *
+FROM gold.fact_sales
+WHERE shipping_date < order_date;
+GO
+
+
+-- Due date should not be before order date
+-- Expected Result: No rows
+
+SELECT *
+FROM gold.fact_sales
+WHERE due_date < order_date;
+GO
+
+
+-- ====================================================================
+-- 6. Gold Layer Record Counts
+-- ====================================================================
+
+SELECT
+    'dim_customers' AS table_name,
+    COUNT(*) AS row_count
+FROM gold.dim_customers
+
+UNION ALL
+
+SELECT
+    'dim_products',
+    COUNT(*)
+FROM gold.dim_products
+
+UNION ALL
+
+SELECT
+    'fact_sales',
+    COUNT(*)
+FROM gold.fact_sales;
+GO
